@@ -3,7 +3,8 @@ const dataSend = require("../middleware/sendData")
 const User = require("../models/user")
 const validator = require("validator");
 const validateSignUp = require("../utils.js/validation");
-const bcrypt=require('bcryptjs')
+const bcrypt=require('bcryptjs');
+const jwtToken = require("../middleware/jwttoken");
 
 
 
@@ -32,25 +33,33 @@ const signUp=async(req,res,next)=>{
 const login=async(req,res,next)=>{
     try {
         const{emailId,password}=req.body
+        
         if(!emailId || !password){
             return next(new ErrorHandler(404,'please enter email and password'))
         }
         if (!validator.isEmail(emailId)) {
             next(new ErrorHandler(404, "Invalid Email-id"));
         }
+        
         const userExist=await User.find({emailId}).select('+password')
+        
         if(!userExist[0]?._id){
             return next(new ErrorHandler(404,'Invalid credentials'))
         }
+        
         else{
             const verifyPassword=await bcrypt.compare(password,userExist[0]?.password)
+          
             if(verifyPassword){
             const sendingData = await User.findById(userExist[0]?._id).select("-password");
-                dataSend(res=res,message='login success',sendingData)
+                const token=jwtToken()
+                dataSend(res=res,message='login success',data={sendingData,token})
             }
+          
             else{
             return next(new ErrorHandler(404, "Wrong password"));
             }
+        
         }    
     } 
     catch (error) {
@@ -60,11 +69,23 @@ const login=async(req,res,next)=>{
 }
 
 
-const getAllUser=async(req,res,next)=>{
+const getProfile=async(req,res,next)=>{
     try {
-            
+            const{id}=req.params
+            if(id){
+                const user=await User.findById(id)
+                if(user.emailId){
+                    dataSend(res,'user profile',user
+                    )
+                }
+                else{
+            return next(new ErrorHandler(404, "Profile not found"));
+
+                }
+            }
     } 
     catch (error) {
+        next(new ErrorHandler(401, error.message));
         
     }
 }
@@ -95,4 +116,4 @@ const updateUser=async(req,res,next)=>{
 
 
 
-module.exports={signUp,updateUser,login}
+module.exports={signUp,updateUser,login,getProfile}
