@@ -2,20 +2,22 @@ const ErrorHandler = require("../middleware/errorHandler")
 const dataSend = require("../middleware/sendData")
 const User = require("../models/user")
 const validator = require("validator");
+const validateSignUp = require("../utils.js/validation");
+const bcrypt=require('bcryptjs')
+
 
 
 const signUp=async(req,res,next)=>{
     try {
-        const{firstName,lastName,gender,password,emailId,age}=req.body
-         if(!firstName || !lastName || !emailId || !password ||!age ||!gender){
-                return next(new ErrorHandler(400,'Fill the require Details'))
-        }
-        if(!validator.isEmail(emailId)){
-                return next(new ErrorHandler(400, "Invalid Email_id"));
-        }
+        const { firstName, lastName, emailId, password } = req.body;
+        //validation checking
 
-        const newUser=new User({firstName,lastName,emailId,gender,age,password})
+        validateSignUp(req,next)
+        
+        //user creating
+        const newUser = new User({ firstName, lastName, emailId, password });
         await newUser.save()
+
         if(newUser._id){
             const sendingData=await User.findById(newUser._id).select('-password')
             dataSend(res=res,message='user created succesfully',data=sendingData)
@@ -23,6 +25,37 @@ const signUp=async(req,res,next)=>{
     } 
     catch (error) {
         next(new ErrorHandler(401,error.message));
+    }
+}
+
+
+const login=async(req,res,next)=>{
+    try {
+        const{emailId,password}=req.body
+        if(!emailId || !password){
+            return next(new ErrorHandler(404,'please enter email and password'))
+        }
+        if (!validator.isEmail(emailId)) {
+            next(new ErrorHandler(404, "Invalid Email-id"));
+        }
+        const userExist=await User.find({emailId}).select('+password')
+        if(!userExist[0]?._id){
+            return next(new ErrorHandler(404,'Invalid credentials'))
+        }
+        else{
+            const verifyPassword=await bcrypt.compare(password,userExist[0]?.password)
+            if(verifyPassword){
+            const sendingData = await User.findById(userExist[0]?._id).select("-password");
+                dataSend(res=res,message='login success',sendingData)
+            }
+            else{
+            return next(new ErrorHandler(404, "Wrong password"));
+            }
+        }    
+    } 
+    catch (error) {
+        next(new ErrorHandler(401, error.message));
+        
     }
 }
 
@@ -62,4 +95,4 @@ const updateUser=async(req,res,next)=>{
 
 
 
-module.exports={signUp,updateUser}
+module.exports={signUp,updateUser,login}
