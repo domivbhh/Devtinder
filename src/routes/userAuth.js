@@ -1,6 +1,5 @@
 const express=require('express')
-const { signUp, updateUser, login, getProfile } = require('../controllers/userController')
-const authenticate = require('../middleware/authenticate')
+const { signUp, login } = require('../controllers/userController')
 
 
 const router=express.Router()
@@ -8,8 +7,7 @@ const router=express.Router()
 
 router.post('/signup',signUp)
 router.post('/login',login)
-router.get('/profile/:id',authenticate,getProfile)
-router.put('/update/:id',updateUser)
+
 
 
 

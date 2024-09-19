@@ -5,18 +5,19 @@ const validator = require("validator");
 const validateSignUp = require("../utils.js/validation");
 const bcrypt=require('bcryptjs');
 const jwtToken = require("../middleware/jwttoken");
+const profileValidation = require("../utils.js/profileValidation");
 
 
 
 const signUp=async(req,res,next)=>{
     try {
-        const { firstName, lastName, emailId, password } = req.body;
+        const { firstName, lastName, emailId, password,gender,age,about } = req.body;
         //validation checking
 
         validateSignUp(req,next)
         
         //user creating
-        const newUser = new User({ firstName, lastName, emailId, password });
+        const newUser = new User({ firstName, lastName, emailId, password,gender,age,about });
         await newUser.save()
 
         if(newUser._id){
@@ -48,11 +49,10 @@ const login=async(req,res,next)=>{
         }
         
         else{
-            const verifyPassword=await bcrypt.compare(password,userExist[0]?.password)
-          
+            const verifyPassword=await userExist[0].verifyJwt(password)
             if(verifyPassword){
             const sendingData = await User.findById(userExist[0]?._id).select("-password");
-                const token=jwtToken()
+                const token=jwtToken(sendingData._id)
                 dataSend(res=res,message='login success',data={sendingData,token})
             }
           
@@ -73,7 +73,7 @@ const getProfile=async(req,res,next)=>{
     try {
             const{id}=req.params
             if(id){
-                const user=await User.findById(id)
+                const user=req.user
                 if(user.emailId){
                     dataSend(res,'user profile',user
                     )
@@ -94,17 +94,25 @@ const updateUser=async(req,res,next)=>{
     try {
         const datas=req.body
         const {id}=req.params
-        const allowed=['firstName','lastName','age','gender']
-        const isUpdateAllowed=Object.keys(datas).some((ele)=>allowed.includes(ele))
-        if (isUpdateAllowed) {
+                
+        const allowed=['firstName','lastName','age','gender','photoUrl','about','skills']
+        const isUpdateAllowed=Object.keys(datas).every((ele)=>allowed.includes(ele))
+
+
+        if (isUpdateAllowed) 
+        {
+          profileValidation(req,next)
           const user = await User.findByIdAndUpdate(id, datas, {
             new: true,
-            runValidators: true,
-          });
-          if (user._id) {
-            dataSend(res, (message = "user updated successfully"), user);
-          }
-        } else {
+            runValidators: true,});
+
+          if (user._id) 
+            {
+            dataSend(res, (message = `${user.firstName} updated successfully`), user);
+            }
+        } 
+        else if(!isUpdateAllowed)
+        {
           return next(new ErrorHandler(401, `Invalid Field Update`));
         }
         
@@ -116,4 +124,26 @@ const updateUser=async(req,res,next)=>{
 
 
 
-module.exports={signUp,updateUser,login,getProfile}
+const passwordChange=async (req,res,next)=>{
+    const {password}=req.body
+    const{id}=req.params
+    const user=req.user
+
+    if(password){
+        const validatePassword=validator.isStrongPassword(password)
+        if(validatePassword){
+            const hashedPassword=await bcrypt.hash(password,10)
+            const user=await User.findByIdAndUpdate(id,{password:hashedPassword},{new:true})
+            res.status(200).json({
+                message:`${user.firstName} password updated successfully`
+            }
+            )
+        }
+        else{
+            next(new ErrorHandler(404,'Weak password'))
+        }
+    }
+}
+
+
+module.exports={signUp,updateUser,login,getProfile,passwordChange}

@@ -2,13 +2,22 @@ const express=require('express')
 const app=express()
 const connectDB = require("./config/database.js");
 const errorController = require('./middleware/errorController.js');
-const userRouter=require('./routes/userAuth.js')
+const cookieparser=require('cookie-parser')
+const userAuthRouter=require('./routes/userAuth.js')
+const profileRouter=require('./routes/profile.js')
+const requestRouter=require('./routes/request.js')
+const userRouter=require('./routes/user.js')
+
+
 
 app.use(express.json())
+app.use(cookieparser())
 
 
-
-app.use('/auth/user',userRouter)
+app.use('/auth',userAuthRouter)
+app.use('/profile',profileRouter)
+app.use('/request',requestRouter)
+app.use('/user',userRouter)
 
 
 

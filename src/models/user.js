@@ -81,6 +81,15 @@ userSchema.pre('save',async function(next){
 })
 
 
+userSchema.index({firstName:1,lastName:1})
+userSchema.index({gender:1})
+
+
+userSchema.methods.verifyJwt=async function(password){
+  const verify =await bcrypt.compare(password, this.password);
+  return verify
+}
+
 
 const User=mongoose.model('users',userSchema)
 module.exports=User
